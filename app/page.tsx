@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,27 +24,13 @@ import {
   ExternalLink,
 } from "lucide-react"
 
-// Mock Web3 functionality - replace with actual Web3 library like wagmi
-const useWallet = () => {
-  const [isConnected, setIsConnected] = useState(false)
-  const [address, setAddress] = useState("")
-  const [balance, setBalance] = useState("0")
+// Import our real wallet context
+import { useWallet } from "@/contexts/WalletContext"
+import { ethers } from "ethers"
+import { toast } from "sonner"
+import { getIDOContract } from "@/lib/contracts"
 
-  const connectWallet = async () => {
-    // Mock wallet connection
-    setIsConnected(true)
-    setAddress("0x1234...5678")
-    setBalance("1.5")
-  }
 
-  const disconnectWallet = () => {
-    setIsConnected(false)
-    setAddress("")
-    setBalance("0")
-  }
-
-  return { isConnected, address, balance, connectWallet, disconnectWallet }
-}
 
 // Mock transaction data
 const mockTransactions = [
@@ -54,37 +40,109 @@ const mockTransactions = [
 ]
 
 export default function MedChainIDO() {
-  const { isConnected, address, balance, connectWallet, disconnectWallet } = useWallet()
+  const { 
+    isConnected, 
+    account, 
+    ethBalance, 
+    connectWallet, 
+    disconnectWallet, 
+    nairaTokenBalance, 
+    provider,
+    refreshBalances } = useWallet()
   const [purchaseAmount, setPurchaseAmount] = useState("")
   const [transactions, setTransactions] = useState(mockTransactions)
-
+  
+  console.log("Naira Token Balance:", nairaTokenBalance);
+  console.log("Eth Token Balance:", ethBalance);
   const targetRaise = 500000000 // ₦500M
   const currentRaised = 185000000 // ₦185M raised so far
   const progressPercentage = (currentRaised / targetRaise) * 100
   const remainingAmount = targetRaise - currentRaised
 
   const handlePurchase = async () => {
-    if (!purchaseAmount || !isConnected) return
+    if (!purchaseAmount || !isConnected || !provider) return;
 
-    // Mock purchase transaction
-    const newTransaction = {
-      id: `0x${Math.random().toString(16).substr(2, 4)}`,
-      amount: purchaseAmount,
-      status: "pending" as const,
-      timestamp: new Date().toLocaleString(),
-      hash: `0x${Math.random().toString(16).substr(2, 16)}`,
+    try {
+      const loadingToast = toast.loading('Processing purchase...');
+
+      // Get contract instance
+      const idoContract = getIDOContract(provider);
+      
+      // Convert purchase amount to wei
+      const amountInWei = ethers.utils.parseEther(purchaseAmount);
+      
+      // Estimate gas limit
+      const gasEstimate = await idoContract.estimateGas.buy(amountInWei);
+      
+      // Add 20% buffer to gas estimate
+      const gasLimit = gasEstimate.mul(120).div(100);
+
+      // Call purchase function with gas limit
+      const tx = await idoContract.buy(amountInWei, {
+        gasLimit: gasLimit,
+        // Optionally specify max fee per gas and max priority fee per gas
+        maxFeePerGas: ethers.utils.parseUnits('50', 'gwei'), // Adjust value as needed
+        maxPriorityFeePerGas: ethers.utils.parseUnits('1.5', 'gwei'), // Adjust value as needed
+      });
+
+      // Add transaction to state
+      const newTransaction = {
+        id: tx.hash,
+        amount: purchaseAmount,
+        status: "pending",
+        timestamp: new Date().toLocaleString(),
+        hash: tx.hash,
+      };
+      setTransactions(prev => [newTransaction, ...prev])
+
+      // Wait for transaction confirmation
+      await tx.wait()
+      
+      // Update transaction status
+      setTransactions(prev => 
+        prev.map(t => t.id === tx.hash ? {...t, status: "completed"} : t)
+      )
+
+      // Refresh balances
+      await refreshBalances()
+      
+      // Clear input
+      setPurchaseAmount("")
+      
+      toast.dismiss(loadingToast);
+      toast.success('Purchase successful!');
+      
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      toast.error(error.message || 'Purchase failed');
+    }
+  }
+
+
+
+  // Add validation function
+  const validatePurchase = (amount: string) => {
+    const numAmount = Number(amount);
+    const minPurchase = 100; // Minimum purchase amount in Naira
+    const maxPurchase = 1000000; // Maximum purchase amount in Naira
+
+    if (numAmount < minPurchase) {
+      toast.error(`Minimum purchase amount is ₦${minPurchase}`);
+      return false;
     }
 
-    setTransactions((prev) => [newTransaction, ...prev])
-    setPurchaseAmount("")
+    if (numAmount > maxPurchase) {
+      toast.error(`Maximum purchase amount is ₦${maxPurchase}`);
+      return false;
+    }
 
-    // Simulate transaction completion after 3 seconds
-    setTimeout(() => {
-      setTransactions((prev) =>
-        prev.map((tx) => (tx.id === newTransaction.id ? { ...tx, status: "completed" as const } : tx)),
-      )
-    }, 3000)
-  }
+    if (numAmount > Number(nairaTokenBalance)) {
+      toast.error('Insufficient Naira balance');
+      return false;
+    }
+
+    return true;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,7 +171,7 @@ export default function MedChainIDO() {
             {isConnected ? (
               <div className="flex items-center space-x-2">
                 <Badge variant="secondary" className="text-xs">
-                  {address}
+                  {account}
                 </Badge>
                 <Button variant="outline" size="sm" onClick={disconnectWallet}>
                   Disconnect
@@ -645,7 +703,12 @@ export default function MedChainIDO() {
                           <Button
                             className="w-full"
                             onClick={handlePurchase}
-                            disabled={!purchaseAmount || Number.parseFloat(purchaseAmount) <= 0}
+                            disabled={
+                              !purchaseAmount || 
+                              !isConnected || 
+                              Number(purchaseAmount) <= 0 ||
+                              !validatePurchase(purchaseAmount)
+                            }
                           >
                             Purchase Tokens
                           </Button>
@@ -669,12 +732,16 @@ export default function MedChainIDO() {
                             <div className="flex justify-between items-center">
                               <span className="text-sm text-muted-foreground">Wallet Address:</span>
                               <Badge variant="secondary" className="font-mono text-xs">
-                                {address}
+                                {account}
                               </Badge>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-sm text-muted-foreground">ETH Balance:</span>
-                              <span className="font-medium">{balance} ETH</span>
+                              <span className="font-medium">{ethBalance} ETH</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Naira Balance:</span>
+                              <span className="font-medium">N {nairaTokenBalance} </span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-sm text-muted-foreground">MCH Balance:</span>
