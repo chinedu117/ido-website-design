@@ -28,7 +28,7 @@ import {
 import { useWallet } from "@/contexts/WalletContext"
 import { ethers } from "ethers"
 import { toast } from "sonner"
-import { getIDOContract } from "@/lib/contracts"
+import { getIDOContract, getNairaTokenContract } from "@/lib/contracts"
 
 
 
@@ -49,7 +49,9 @@ export default function MedChainIDO() {
     nairaTokenBalance, 
     mchBalance,
     provider,
-    refreshBalances } = useWallet()
+    refreshBalances,
+  } = useWallet()
+
   const [purchaseAmount, setPurchaseAmount] = useState("")
   const [transactions, setTransactions] = useState(mockTransactions)
   
@@ -63,27 +65,33 @@ export default function MedChainIDO() {
   const handlePurchase = async () => {
     if (!purchaseAmount || !isConnected || !provider) return;
 
+    const loadingToast = toast.loading('Processing purchase...');
     try {
-      const loadingToast = toast.loading('Processing purchase...');
-
-      // Get contract instance
+      // Get contract instances
       const idoContract = getIDOContract(provider);
+      const tokenContract = getNairaTokenContract(provider);
       
       // Convert purchase amount to wei
       const amountInWei = ethers.utils.parseEther(purchaseAmount);
-      
-      // Estimate gas limit
-      const gasEstimate = await idoContract.estimateGas.buy(amountInWei);
-      
-      // Add 20% buffer to gas estimate
-      const gasLimit = gasEstimate.mul(120).div(100);
 
-      // Call purchase function with gas limit
+      // First approve the IDO contract to spend tokens
+      try {
+        const approvalTx = await tokenContract.approve(
+          process.env.NEXT_PUBLIC_IDO_CONTRACT_ADDRESS,
+          amountInWei
+        );
+        await approvalTx.wait();
+        toast.success('Approval successful!');
+      } catch (error: any) {
+        console.error('Approval error:', error);
+        throw new Error('Failed to approve token spending');
+      }
+
+      // Now proceed with the purchase
       const tx = await idoContract.buy(amountInWei, {
-        gasLimit: gasLimit,
-        // Optionally specify max fee per gas and max priority fee per gas
-        maxFeePerGas: ethers.utils.parseUnits('50', 'gwei'), // Adjust value as needed
-        maxPriorityFeePerGas: ethers.utils.parseUnits('1.5', 'gwei'), // Adjust value as needed
+        gasLimit: ethers.utils.hexlify(300000),
+        maxFeePerGas: ethers.utils.parseUnits('50', 'gwei'),
+        maxPriorityFeePerGas: ethers.utils.parseUnits('1.5', 'gwei'),
       });
 
       // Add transaction to state
@@ -94,28 +102,28 @@ export default function MedChainIDO() {
         timestamp: new Date().toLocaleString(),
         hash: tx.hash,
       };
-      setTransactions(prev => [newTransaction, ...prev])
+      setTransactions(prev => [newTransaction, ...prev]);
 
-      // Wait for transaction confirmation
-      await tx.wait()
+      await tx.wait();
       
-      // Update transaction status
       setTransactions(prev => 
         prev.map(t => t.id === tx.hash ? {...t, status: "completed"} : t)
-      )
-
-      // Refresh balances
-      await refreshBalances()
-      
-      // Clear input
-      setPurchaseAmount("")
+      );
+      await refreshBalances();
+      setPurchaseAmount("");
       
       toast.dismiss(loadingToast);
       toast.success('Purchase successful!');
       
     } catch (error: any) {
       console.error('Purchase error:', error);
-      toast.error(error.message || 'Purchase failed');
+      toast.error(
+        error.message === 'Failed to approve token spending'
+          ? 'Failed to approve token spending'
+          : 'Purchase failed'
+      );
+    } finally {
+      toast.dismiss(loadingToast);
     }
   }
 
