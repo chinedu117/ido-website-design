@@ -47,6 +47,7 @@ export default function MedChainIDO() {
     connectWallet, 
     disconnectWallet, 
     nairaTokenBalance, 
+    mchBalance,
     provider,
     refreshBalances } = useWallet()
   const [purchaseAmount, setPurchaseAmount] = useState("")
@@ -745,7 +746,7 @@ export default function MedChainIDO() {
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-sm text-muted-foreground">MCH Balance:</span>
-                              <span className="font-medium">0 MCH</span>
+                              <span className="font-medium">{mchBalance} MCH</span>
                             </div>
                           </div>
 
