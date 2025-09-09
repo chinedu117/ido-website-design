@@ -1,10 +1,86 @@
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Shield, Zap, Globe, Users, TrendingUp, Lock, CheckCircle, ArrowRight, Coins, BarChart3 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Shield,
+  Zap,
+  Globe,
+  Users,
+  TrendingUp,
+  Lock,
+  CheckCircle,
+  ArrowRight,
+  Coins,
+  BarChart3,
+  Wallet,
+  Clock,
+  ExternalLink,
+} from "lucide-react"
+
+// Mock Web3 functionality - replace with actual Web3 library like wagmi
+const useWallet = () => {
+  const [isConnected, setIsConnected] = useState(false)
+  const [address, setAddress] = useState("")
+  const [balance, setBalance] = useState("0")
+
+  const connectWallet = async () => {
+    // Mock wallet connection
+    setIsConnected(true)
+    setAddress("0x1234...5678")
+    setBalance("1.5")
+  }
+
+  const disconnectWallet = () => {
+    setIsConnected(false)
+    setAddress("")
+    setBalance("0")
+  }
+
+  return { isConnected, address, balance, connectWallet, disconnectWallet }
+}
+
+// Mock transaction data
+const mockTransactions = [
+  { id: "0x1234", amount: "1000", status: "completed", timestamp: "2025-01-09 14:30", hash: "0x1234567890abcdef" },
+  { id: "0x5678", amount: "500", status: "pending", timestamp: "2025-01-09 15:45", hash: "0x5678901234abcdef" },
+  { id: "0x9abc", amount: "2000", status: "failed", timestamp: "2025-01-09 16:20", hash: "0x9abc567890123def" },
+]
 
 export default function MedChainIDO() {
+  const { isConnected, address, balance, connectWallet, disconnectWallet } = useWallet()
+  const [purchaseAmount, setPurchaseAmount] = useState("")
+  const [transactions, setTransactions] = useState(mockTransactions)
+
+  const handlePurchase = async () => {
+    if (!purchaseAmount || !isConnected) return
+
+    // Mock purchase transaction
+    const newTransaction = {
+      id: `0x${Math.random().toString(16).substr(2, 4)}`,
+      amount: purchaseAmount,
+      status: "pending" as const,
+      timestamp: new Date().toLocaleString(),
+      hash: `0x${Math.random().toString(16).substr(2, 16)}`,
+    }
+
+    setTransactions((prev) => [newTransaction, ...prev])
+    setPurchaseAmount("")
+
+    // Simulate transaction completion after 3 seconds
+    setTimeout(() => {
+      setTransactions((prev) =>
+        prev.map((tx) => (tx.id === newTransaction.id ? { ...tx, status: "completed" as const } : tx)),
+      )
+    }, 3000)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -26,10 +102,24 @@ export default function MedChainIDO() {
             <a href="#tokenomics" className="text-muted-foreground hover:text-foreground transition-colors">
               Tokenomics
             </a>
-            <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">
-              Roadmap
+            <a href="#ido" className="text-muted-foreground hover:text-foreground transition-colors">
+              IDO
             </a>
-            <Button>Join IDO</Button>
+            {isConnected ? (
+              <div className="flex items-center space-x-2">
+                <Badge variant="secondary" className="text-xs">
+                  {address}
+                </Badge>
+                <Button variant="outline" size="sm" onClick={disconnectWallet}>
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={connectWallet}>
+                <Wallet className="w-4 h-4 mr-2" />
+                Connect Wallet
+              </Button>
+            )}
           </div>
         </div>
       </nav>
@@ -57,7 +147,11 @@ export default function MedChainIDO() {
             transforming healthcare across Africa.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button size="lg" className="text-lg px-8">
+            <Button
+              size="lg"
+              className="text-lg px-8"
+              onClick={() => document.getElementById("ido")?.scrollIntoView({ behavior: "smooth" })}
+            >
               Participate in IDO
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
@@ -427,10 +521,215 @@ export default function MedChainIDO() {
         </div>
       </section>
 
+      {/* IDO Purchase and Dashboard Section */}
+      <section id="ido" className="py-20 px-4 bg-muted/30">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">IDO Dashboard</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Purchase MCH tokens and track your transactions
+            </p>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <Tabs defaultValue="purchase" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="purchase">Purchase Tokens</TabsTrigger>
+                <TabsTrigger value="transactions">Transaction History</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="purchase" className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Purchase Form */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Coins className="w-5 h-5 mr-2" />
+                        Buy MCH Tokens
+                      </CardTitle>
+                      <CardDescription>Purchase MedChain tokens at the IDO price of ₦2.50 per token</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {!isConnected ? (
+                        <div className="text-center py-8">
+                          <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-muted-foreground mb-4">Connect your wallet to participate in the IDO</p>
+                          <Button onClick={connectWallet}>
+                            <Wallet className="w-4 h-4 mr-2" />
+                            Connect Wallet
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            <Label htmlFor="amount">Amount (₦)</Label>
+                            <Input
+                              id="amount"
+                              type="number"
+                              placeholder="Enter amount in Naira"
+                              value={purchaseAmount}
+                              onChange={(e) => setPurchaseAmount(e.target.value)}
+                            />
+                          </div>
+
+                          {purchaseAmount && (
+                            <div className="p-4 bg-muted rounded-lg">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm text-muted-foreground">You will receive:</span>
+                                <span className="font-medium">
+                                  {(Number.parseFloat(purchaseAmount) / 2.5).toLocaleString()} MCH
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Token price:</span>
+                                <span className="font-medium">₦2.50 per MCH</span>
+                              </div>
+                            </div>
+                          )}
+
+                          <Button
+                            className="w-full"
+                            onClick={handlePurchase}
+                            disabled={!purchaseAmount || Number.parseFloat(purchaseAmount) <= 0}
+                          >
+                            Purchase Tokens
+                          </Button>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Wallet Info */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Wallet className="w-5 h-5 mr-2" />
+                        Wallet Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {isConnected ? (
+                        <>
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Wallet Address:</span>
+                              <Badge variant="secondary" className="font-mono text-xs">
+                                {address}
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">ETH Balance:</span>
+                              <span className="font-medium">{balance} ETH</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">MCH Balance:</span>
+                              <span className="font-medium">0 MCH</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-4 border-t">
+                            <h4 className="font-medium mb-2">IDO Progress</h4>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span>Raised</span>
+                                <span>₦125M / ₦500M</span>
+                              </div>
+                              <Progress value={25} className="h-2" />
+                              <div className="text-xs text-muted-foreground text-center">25% of target reached</div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p>Connect wallet to view information</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="transactions" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Clock className="w-5 h-5 mr-2" />
+                      Transaction History
+                    </CardTitle>
+                    <CardDescription>Track all your MCH token purchases and transactions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {!isConnected ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>Connect wallet to view transaction history</p>
+                      </div>
+                    ) : transactions.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>No transactions yet</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {transactions.map((tx) => (
+                          <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center space-x-4">
+                              <div
+                                className={`w-3 h-3 rounded-full ${
+                                  tx.status === "completed"
+                                    ? "bg-green-500"
+                                    : tx.status === "pending"
+                                      ? "bg-yellow-500"
+                                      : "bg-red-500"
+                                }`}
+                              />
+                              <div>
+                                <p className="font-medium">
+                                  ₦{tx.amount} → {(Number.parseFloat(tx.amount) / 2.5).toLocaleString()} MCH
+                                </p>
+                                <p className="text-sm text-muted-foreground">{tx.timestamp}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge
+                                variant={
+                                  tx.status === "completed"
+                                    ? "default"
+                                    : tx.status === "pending"
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                              >
+                                {tx.status}
+                              </Badge>
+                              <Button variant="ghost" size="sm" asChild>
+                                <a
+                                  href={`https://etherscan.io/tx/${tx.hash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="relative py-20 px-4 overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img src="/futuristic-blockchain-network-with-medical-cross-s.jpg" alt="Healthcare revolution" className="w-full h-full object-cover" />
+          <img
+            src="/futuristic-blockchain-network-with-medical-cross-s.jpg"
+            alt="Healthcare revolution"
+            className="w-full h-full object-cover"
+          />
           <div className="absolute inset-0 bg-primary/90"></div>
         </div>
         <div className="container mx-auto text-center relative z-10 text-primary-foreground">
