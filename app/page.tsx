@@ -58,6 +58,11 @@ export default function MedChainIDO() {
   const [purchaseAmount, setPurchaseAmount] = useState("")
   const [transactions, setTransactions] = useState(mockTransactions)
 
+  const targetRaise = 500000000 // ₦500M
+  const currentRaised = 185000000 // ₦185M raised so far
+  const progressPercentage = (currentRaised / targetRaise) * 100
+  const remainingAmount = targetRaise - currentRaised
+
   const handlePurchase = async () => {
     if (!purchaseAmount || !isConnected) return
 
@@ -146,6 +151,56 @@ export default function MedChainIDO() {
             Eliminating counterfeit drugs and securing health records with blockchain technology. Join the revolution
             transforming healthcare across Africa.
           </p>
+
+          <div className="mb-12 max-w-4xl mx-auto">
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-8">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold mb-2">IDO Fundraising Progress</h3>
+                  <p className="text-muted-foreground">
+                    Join thousands of investors backing Africa's healthcare revolution
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="text-center">
+                    <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
+                      ₦{(currentRaised / 1000000).toFixed(0)}M
+                    </div>
+                    <div className="text-sm text-muted-foreground font-medium">RAISED SO FAR</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-4xl md:text-5xl font-bold text-destructive mb-2">
+                      ₦{(remainingAmount / 1000000).toFixed(0)}M
+                    </div>
+                    <div className="text-sm text-muted-foreground font-medium">REMAINING</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-4xl md:text-5xl font-bold text-orange-500 mb-2">
+                      {progressPercentage.toFixed(1)}%
+                    </div>
+                    <div className="text-sm text-muted-foreground font-medium">COMPLETED</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm font-medium">
+                    <span>₦{(currentRaised / 1000000).toFixed(0)}M raised</span>
+                    <span>₦{(targetRaise / 1000000).toFixed(0)}M target</span>
+                  </div>
+                  <Progress value={progressPercentage} className="h-4 bg-muted" />
+                  <div className="text-center text-sm text-muted-foreground">
+                    <strong>{Math.round(progressPercentage)}% of target achieved</strong> •
+                    <span className="text-primary font-medium">
+                      {" "}
+                      {((targetRaise - currentRaised) / 2.5 / 1000000).toFixed(1)}M MCH tokens remaining
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button
               size="lg"
@@ -632,10 +687,14 @@ export default function MedChainIDO() {
                             <div className="space-y-2">
                               <div className="flex justify-between text-sm">
                                 <span>Raised</span>
-                                <span>₦125M / ₦500M</span>
+                                <span>
+                                  ₦{(currentRaised / 1000000).toFixed(0)}M / ₦{(targetRaise / 1000000).toFixed(0)}M
+                                </span>
                               </div>
-                              <Progress value={25} className="h-2" />
-                              <div className="text-xs text-muted-foreground text-center">25% of target reached</div>
+                              <Progress value={progressPercentage} className="h-2" />
+                              <div className="text-xs text-muted-foreground text-center">
+                                {progressPercentage.toFixed(1)}% of target reached
+                              </div>
                             </div>
                           </div>
                         </>
