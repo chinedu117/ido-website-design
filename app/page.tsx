@@ -78,10 +78,9 @@ export default function MedChainIDO() {
   }
 
   useEffect(() => {
-    getMetrics()
-    const interval = setInterval(getMetrics, 5000) // Refresh every 5 seconds
-    return () => clearInterval(interval)
-  }, [isConnected, provider])
+    const interval = setInterval(getMetrics, 5000); // Refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, [isConnected, provider]);
 
   const handlePurchase = async () => {
     if (!purchaseAmount || !isConnected || !provider) return

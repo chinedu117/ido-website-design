@@ -162,8 +162,8 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
   // Add effect to refresh balances periodically
   useEffect(() => {
     if (account) {
-      const interval = setInterval(fetchBalances, 30000) // Refresh every 30 seconds
-      return () => clearInterval(interval)
+      const interval = setInterval(fetchBalances, 5000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
     }
   }, [account, provider])
 
