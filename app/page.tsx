@@ -47,7 +47,7 @@ export default function MedChainIDO() {
     nairaTokenBalance,
     mchBalance,
     provider,
-    refreshBalances,
+    refreshTokenBalances,
   } = useWallet()
 
   const [purchaseAmount, setPurchaseAmount] = useState("")
@@ -79,10 +79,8 @@ export default function MedChainIDO() {
 
   useEffect(() => {
     const interval = setInterval(getMetrics, 5000); // Refresh every 5 seconds
-    const interval2 = setInterval(refreshBalances, 5000); // Refresh every 5 seconds
     return () => {
       clearInterval(interval);
-      clearInterval(interval2);
     };
   }, [isConnected, provider]);
 
@@ -127,7 +125,7 @@ export default function MedChainIDO() {
       await tx.wait()
 
       setTransactions((prev) => prev.map((t) => (t.id === tx.hash ? { ...t, status: "completed" } : t)))
-      await refreshBalances()
+      await refreshTokenBalances()
       setPurchaseAmount("")
 
       toast.dismiss(loadingToast)

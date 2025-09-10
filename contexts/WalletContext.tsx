@@ -22,7 +22,7 @@ interface WalletContextType {
   ethBalance: string
   nairaTokenBalance: string
   mchBalance: string
-  refreshBalances: () => Promise<void>
+  refreshTokenBalances: () => Promise<void>
   handleError: (error: any) => void
 }
 
@@ -46,7 +46,9 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
   const NAIRA_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_NAIRA_CONTRACT_ADDRESS
 
   const fetchBalances = async () => {
+    console.log(`Fetching balances function called for account: ${account} ${NAIRA_CONTRACT_ADDRESS} ${provider}`)
     if (!provider || !account || !NAIRA_CONTRACT_ADDRESS) return
+    console.log("Fetching balances...")
 
     try {
       // Fetch ETH balance
@@ -116,7 +118,8 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
   }
 
   // Add refresh balances function
-  const refreshBalances = async () => {
+  const refreshTokenBalances = async () => {
+    console.log("Refreshing token balances...")
     await fetchBalances()
   }
 
@@ -162,7 +165,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
   // Add effect to refresh balances periodically
   useEffect(() => {
     if (account) {
-      const interval = setInterval(fetchBalances, 5000); // Refresh every 30 seconds
+      const interval = setInterval(fetchBalances, 5000); // Refresh every 5 seconds
       return () => clearInterval(interval);
     }
   }, [account, provider])
@@ -180,7 +183,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
         ethBalance,
         nairaTokenBalance,
         mchBalance,
-        refreshBalances,
+        refreshTokenBalances,
         handleError,
       }}
     >
