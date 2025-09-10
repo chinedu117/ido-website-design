@@ -54,13 +54,39 @@ export default function MedChainIDO() {
 
   const [purchaseAmount, setPurchaseAmount] = useState("")
   const [transactions, setTransactions] = useState(mockTransactions)
-  
-  console.log("Naira Token Balance:", nairaTokenBalance);
-  console.log("Eth Token Balance:", ethBalance);
+  const [currentRaised, setCurrentRaised] = useState<number>(0);
+  const [progressPercentage, setProgressPercentage] = useState<number>(0);
+  const [remainingAmount, setRemainingAmount] = useState<number>(0);
   const targetRaise = 500000000 // ₦500M
-  const currentRaised = 185000000 // ₦185M raised so far
-  const progressPercentage = (currentRaised / targetRaise) * 100
-  const remainingAmount = targetRaise - currentRaised
+
+  
+  
+  const getMetrics = async () => {
+
+    if (!isConnected || !provider) return;
+    
+    const idoContract = getIDOContract(provider);
+
+    let amountRaised = await idoContract.totalNGNRaised();
+    amountRaised = Number(ethers.utils.formatEther(amountRaised));
+    setCurrentRaised(amountRaised);
+    const progressPercentage = (amountRaised / targetRaise) * 100
+    const remainingAmount = targetRaise - amountRaised
+
+    console.log("Target Raise (NGN):", targetRaise);
+    console.log("Current Raised (NGN):", amountRaised);
+    console.log("Progress Percentage:", progressPercentage);
+    console.log("Remaining Amount (NGN):", remainingAmount);
+
+    setProgressPercentage(progressPercentage);
+    setRemainingAmount(remainingAmount);
+  };
+
+  useEffect(() => {
+    getMetrics();
+    const interval = setInterval(getMetrics, 5000); // Refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, [isConnected, provider]);
 
   const handlePurchase = async () => {
     if (!purchaseAmount || !isConnected || !provider) return;
@@ -70,10 +96,9 @@ export default function MedChainIDO() {
       // Get contract instances
       const idoContract = getIDOContract(provider);
       const tokenContract = getNairaTokenContract(provider);
-      
       // Convert purchase amount to wei
       const amountInWei = ethers.utils.parseEther(purchaseAmount);
-
+    
       // First approve the IDO contract to spend tokens
       try {
         const approvalTx = await tokenContract.approve(
@@ -124,6 +149,7 @@ export default function MedChainIDO() {
       );
     } finally {
       toast.dismiss(loadingToast);
+      await getMetrics();
     }
   }
 
@@ -136,12 +162,12 @@ export default function MedChainIDO() {
     const maxPurchase = 1000000; // Maximum purchase amount in Naira
 
     if (numAmount < minPurchase) {
-      toast.error(`Minimum purchase amount is ₦${minPurchase}`);
+      toast.error(`Minimum purchase amount is ₦ ${minPurchase}`);
       return false;
     }
 
     if (numAmount > maxPurchase) {
-      toast.error(`Maximum purchase amount is ₦${maxPurchase}`);
+      toast.error(`Maximum purchase amount is ₦ ${maxPurchase}`);
       return false;
     }
 
