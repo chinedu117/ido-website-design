@@ -30,8 +30,6 @@ import { ethers } from "ethers"
 import { toast } from "sonner"
 import { getIDOContract, getNairaTokenContract } from "@/lib/contracts"
 
-
-
 // Mock transaction data
 const mockTransactions = [
   { id: "0x1234", amount: "1000", status: "completed", timestamp: "2025-01-09 14:30", hash: "0x1234567890abcdef" },
@@ -40,13 +38,13 @@ const mockTransactions = [
 ]
 
 export default function MedChainIDO() {
-  const { 
-    isConnected, 
-    account, 
-    ethBalance, 
-    connectWallet, 
-    disconnectWallet, 
-    nairaTokenBalance, 
+  const {
+    isConnected,
+    account,
+    ethBalance,
+    connectWallet,
+    disconnectWallet,
+    nairaTokenBalance,
     mchBalance,
     provider,
     refreshBalances,
@@ -54,70 +52,64 @@ export default function MedChainIDO() {
 
   const [purchaseAmount, setPurchaseAmount] = useState("")
   const [transactions, setTransactions] = useState(mockTransactions)
-  const [currentRaised, setCurrentRaised] = useState<number>(0);
-  const [progressPercentage, setProgressPercentage] = useState<number>(0);
-  const [remainingAmount, setRemainingAmount] = useState<number>(0);
+  const [currentRaised, setCurrentRaised] = useState<number>(0)
+  const [progressPercentage, setProgressPercentage] = useState<number>(0)
+  const [remainingAmount, setRemainingAmount] = useState<number>(0)
   const targetRaise = 500000000 // ₦500M
 
-  
-  
   const getMetrics = async () => {
+    if (!isConnected || !provider) return
 
-    if (!isConnected || !provider) return;
-    
-    const idoContract = getIDOContract(provider);
+    const idoContract = getIDOContract(provider)
 
-    let amountRaised = await idoContract.totalNGNRaised();
-    amountRaised = Number(ethers.utils.formatEther(amountRaised));
-    setCurrentRaised(amountRaised);
+    let amountRaised = await idoContract.totalNGNRaised()
+    amountRaised = Number(ethers.utils.formatEther(amountRaised))
+    setCurrentRaised(amountRaised)
     const progressPercentage = (amountRaised / targetRaise) * 100
     const remainingAmount = targetRaise - amountRaised
 
-    console.log("Target Raise (NGN):", targetRaise);
-    console.log("Current Raised (NGN):", amountRaised);
-    console.log("Progress Percentage:", progressPercentage);
-    console.log("Remaining Amount (NGN):", remainingAmount);
+    console.log("Target Raise (NGN):", targetRaise)
+    console.log("Current Raised (NGN):", amountRaised)
+    console.log("Progress Percentage:", progressPercentage)
+    console.log("Remaining Amount (NGN):", remainingAmount)
 
-    setProgressPercentage(progressPercentage);
-    setRemainingAmount(remainingAmount);
-  };
+    setProgressPercentage(progressPercentage)
+    setRemainingAmount(remainingAmount)
+  }
 
   useEffect(() => {
-    getMetrics();
-    const interval = setInterval(getMetrics, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, [isConnected, provider]);
+    getMetrics()
+    const interval = setInterval(getMetrics, 5000) // Refresh every 5 seconds
+    return () => clearInterval(interval)
+  }, [isConnected, provider])
 
   const handlePurchase = async () => {
-    if (!purchaseAmount || !isConnected || !provider) return;
+    if (!purchaseAmount || !isConnected || !provider) return
 
-    const loadingToast = toast.loading('Processing purchase...');
+    const loadingToast = toast.loading("Processing purchase...")
     try {
       // Get contract instances
-      const idoContract = getIDOContract(provider);
-      const tokenContract = getNairaTokenContract(provider);
+      const idoContract = getIDOContract(provider)
+      const tokenContract = getNairaTokenContract(provider)
       // Convert purchase amount to wei
-      const amountInWei = ethers.utils.parseEther(purchaseAmount);
-    
+      const amountInWei = ethers.utils.parseEther(purchaseAmount)
+
       // First approve the IDO contract to spend tokens
       try {
-        const approvalTx = await tokenContract.approve(
-          process.env.NEXT_PUBLIC_IDO_CONTRACT_ADDRESS,
-          amountInWei
-        );
-        await approvalTx.wait();
-        toast.success('Approval successful!');
+        const approvalTx = await tokenContract.approve(process.env.NEXT_PUBLIC_IDO_CONTRACT_ADDRESS, amountInWei)
+        await approvalTx.wait()
+        toast.success("Approval successful!")
       } catch (error: any) {
-        console.error('Approval error:', error);
-        throw new Error('Failed to approve token spending');
+        console.error("Approval error:", error)
+        throw new Error("Failed to approve token spending")
       }
 
       // Now proceed with the purchase
       const tx = await idoContract.buy(amountInWei, {
         gasLimit: ethers.utils.hexlify(300000),
-        maxFeePerGas: ethers.utils.parseUnits('50', 'gwei'),
-        maxPriorityFeePerGas: ethers.utils.parseUnits('1.5', 'gwei'),
-      });
+        maxFeePerGas: ethers.utils.parseUnits("50", "gwei"),
+        maxPriorityFeePerGas: ethers.utils.parseUnits("1.5", "gwei"),
+      })
 
       // Add transaction to state
       const newTransaction = {
@@ -126,58 +118,51 @@ export default function MedChainIDO() {
         status: "pending",
         timestamp: new Date().toLocaleString(),
         hash: tx.hash,
-      };
-      setTransactions(prev => [newTransaction, ...prev]);
+      }
+      setTransactions((prev) => [newTransaction, ...prev])
 
-      await tx.wait();
-      
-      setTransactions(prev => 
-        prev.map(t => t.id === tx.hash ? {...t, status: "completed"} : t)
-      );
-      await refreshBalances();
-      setPurchaseAmount("");
-      
-      toast.dismiss(loadingToast);
-      toast.success('Purchase successful!');
-      
+      await tx.wait()
+
+      setTransactions((prev) => prev.map((t) => (t.id === tx.hash ? { ...t, status: "completed" } : t)))
+      await refreshBalances()
+      setPurchaseAmount("")
+
+      toast.dismiss(loadingToast)
+      toast.success("Purchase successful!")
     } catch (error: any) {
-      console.error('Purchase error:', error);
+      console.error("Purchase error:", error)
       toast.error(
-        error.message === 'Failed to approve token spending'
-          ? 'Failed to approve token spending'
-          : 'Purchase failed'
-      );
+        error.message === "Failed to approve token spending" ? "Failed to approve token spending" : "Purchase failed",
+      )
     } finally {
-      toast.dismiss(loadingToast);
-      await getMetrics();
+      toast.dismiss(loadingToast)
+      await getMetrics()
     }
   }
 
-
-
   // Add validation function
   const validatePurchase = (amount: string) => {
-    const numAmount = Number(amount);
-    const minPurchase = 100; // Minimum purchase amount in Naira
-    const maxPurchase = 1000000; // Maximum purchase amount in Naira
+    const numAmount = Number(amount)
+    const minPurchase = 100 // Minimum purchase amount in Naira
+    const maxPurchase = 1000000 // Maximum purchase amount in Naira
 
     if (numAmount < minPurchase) {
-      toast.error(`Minimum purchase amount is ₦ ${minPurchase}`);
-      return false;
+      toast.error(`Minimum purchase amount is ₦ ${minPurchase}`)
+      return false
     }
 
     if (numAmount > maxPurchase) {
-      toast.error(`Maximum purchase amount is ₦ ${maxPurchase}`);
-      return false;
+      toast.error(`Maximum purchase amount is ₦ ${maxPurchase}`)
+      return false
     }
 
     if (numAmount > Number(nairaTokenBalance)) {
-      toast.error('Insufficient Naira balance');
-      return false;
+      toast.error("Insufficient Naira balance")
+      return false
     }
 
-    return true;
-  };
+    return true
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -246,10 +231,10 @@ export default function MedChainIDO() {
           </p>
 
           <div className="mb-12 max-w-4xl mx-auto">
-            <Card className="bg-primary/5 border-primary/20">
+            <Card className="bg-card border">
               <CardContent className="p-8">
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold mb-2">IDO Fundraising Progress</h3>
+                  <h3 className="text-2xl font-bold mb-2 text-foreground">IDO Fundraising Progress</h3>
                   <p className="text-muted-foreground">
                     Join thousands of investors backing Africa's healthcare revolution
                   </p>
@@ -257,19 +242,19 @@ export default function MedChainIDO() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div className="text-center">
-                    <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
+                    <div className="text-4xl md:text-5xl font-bold text-green-700 dark:text-green-400 mb-2">
                       ₦{(currentRaised / 1000000).toFixed(0)}M
                     </div>
                     <div className="text-sm text-muted-foreground font-medium">RAISED SO FAR</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-4xl md:text-5xl font-bold text-destructive mb-2">
+                    <div className="text-4xl md:text-5xl font-bold text-red-700 dark:text-red-400 mb-2">
                       ₦{(remainingAmount / 1000000).toFixed(0)}M
                     </div>
                     <div className="text-sm text-muted-foreground font-medium">REMAINING</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-4xl md:text-5xl font-bold text-orange-500 mb-2">
+                    <div className="text-4xl md:text-5xl font-bold text-orange-700 dark:text-orange-400 mb-2">
                       {progressPercentage.toFixed(1)}%
                     </div>
                     <div className="text-sm text-muted-foreground font-medium">COMPLETED</div>
@@ -277,14 +262,14 @@ export default function MedChainIDO() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex justify-between text-sm font-medium">
+                  <div className="flex justify-between text-sm font-medium text-foreground">
                     <span>₦{(currentRaised / 1000000).toFixed(0)}M raised</span>
                     <span>₦{(targetRaise / 1000000).toFixed(0)}M target</span>
                   </div>
                   <Progress value={progressPercentage} className="h-4 bg-muted" />
                   <div className="text-center text-sm text-muted-foreground">
                     <strong>{Math.round(progressPercentage)}% of target achieved</strong> •
-                    <span className="text-primary font-medium">
+                    <span className="text-green-700 dark:text-green-400 font-medium">
                       {" "}
                       {((targetRaise - currentRaised) / 2.5 / 1000000).toFixed(1)}M MCH tokens remaining
                     </span>
@@ -739,8 +724,8 @@ export default function MedChainIDO() {
                             className="w-full"
                             onClick={handlePurchase}
                             disabled={
-                              !purchaseAmount || 
-                              !isConnected || 
+                              !purchaseAmount ||
+                              !isConnected ||
                               Number(purchaseAmount) <= 0 ||
                               !validatePurchase(purchaseAmount)
                             }

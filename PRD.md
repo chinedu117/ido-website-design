@@ -37,11 +37,12 @@ The MedChain IDO website aims to create a decentralized platform that enables us
 
 ### Environment Variables
 Required environment variables for the application:
-```
+\`\`\`
 NEXT_PUBLIC_IDO_CONTRACT_ADDRESS=<medchain_ido_contract_address>
-NEXT_PUBLIC_TOKEN_CONTRACT_ADDRESS=<medchain_token_address>
+NEXT_PUBLIC_MCH_CONTRACT_ADDRESS=<medchain_token_contract_address>
 NEXT_PUBLIC_NETWORK_ID=11155111 # Sepolia network ID
-```
+NEXT_PUBLIC_NAIRA_CONTRACT_ADDRESS=<naira_token_contract_address>
+\`\`\`
 
 ### Implementation Requirements
 
